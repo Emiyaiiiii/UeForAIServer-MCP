@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+</head>
+
+<body>
+    <script>
+        const eventSource = new EventSource('http://localhost:8020/ue_sse');
+        eventSource.addEventListener('notification', function (event) {
+            console.log('Received notification:', event.data);
+            // 这里可以根据接收到的通知消息进行相应的前端展示逻辑
+        });
+    </script>
+</body>
+
+</html>
