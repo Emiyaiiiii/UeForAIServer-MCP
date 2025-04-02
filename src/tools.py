@@ -1,29 +1,44 @@
 from mcp.server.fastmcp import FastMCP
-from mcp.server.fastmcp import FastMCP
-from starlette.applications import Starlette
-from mcp.server.sse import SseServerTransport
-from starlette.requests import Request
-from starlette.routing import Mount, Route
-from starlette.responses import StreamingResponse
-from sse_starlette.sse import EventSourceResponse
-from starlette.middleware.cors import CORSMiddleware
-from mcp.server import Server
-import uvicorn
 import asyncio
 from fuzzywuzzy import process
+from typing import Dict
 
-mcp = FastMCP("docs")
+import logging
+logger = logging.getLogger(__name__)
 
-notifications = []
+# Ue Sessions
+ue_sessions: Dict[str, dict] = {}
+
+def get_ue_sessions():
+    return ue_sessions
+
+mcp = FastMCP("UeForAI", log_level="INFO", port=8020)
+
+def send_notification_for_all(notification_data):
+    """向所有活跃会话发送通知"""
+    for session_id, session_info in ue_sessions.items():
+        try:
+            session_info['queue'].put_nowait(notification_data)
+        except asyncio.QueueFull:
+            logger.warning(f"Notification queue full for session {session_id}")
+
+def send_notification_for_one(session_id, notification_data):
+    """向所有活跃会话发送通知"""
+    try:
+        ue_sessions[session_id]['queue'].put_nowait(notification_data)
+    except asyncio.QueueFull:
+        logger.warning(f"Notification queue full for session {session_id}")
+
 
 #TODO 视角管理
 @mcp.tool()
-async def FirstPerson(isFirstPerson: bool):
+async def FirstPerson(isFirstPerson: bool, session_id: str):
     """
     是否要切换为第一人称。
 
     参数:
     isFirstPerson: 是否要切换为第一人称 (例如: true)
+    session_id: 会话id，用于区分不同的用户  
 
     返回:
     切换第一人称的结果
@@ -33,16 +48,17 @@ async def FirstPerson(isFirstPerson: bool):
         "function": "FirstPerson",
         "data": isFirstPerson
     }
-    notifications.append({'data': result})
+    send_notification_for_one(session_id, {'data': result})
     return "操作成功"
 
 @mcp.tool()
-async def ThirdPerson(isThirdPerson: bool):
+async def ThirdPerson(isThirdPerson: bool, session_id: str):
     """
     是否要切换为第三人称。
 
     参数:
     isThirdPerson: 是否要切换为第三人称 (例如: true)
+    session_id: 会话id，用于区分不同的用户  
 
     返回:
     切换第三人称的结果
@@ -52,16 +68,17 @@ async def ThirdPerson(isThirdPerson: bool):
         "function": "ThirdPerson",
         "data": isThirdPerson
     }
-    notifications.append({'data': result})
+    send_notification_for_one(session_id, {'data': result})
     return "操作成功"
 
 @mcp.tool()
-async def MarkLocation(MarkID: str):
+async def MarkLocation(MarkID: str, session_id: str):
     """
     防汛点，重大危险源，仓库位置点标签定位。
 
     参数:
     MarkID: 标签的ID
+    session_id: 会话id，用于区分不同的用户  
 
     返回:
     标签定位的结果
@@ -71,18 +88,19 @@ async def MarkLocation(MarkID: str):
         "function": "2DMarkLocation",
         "data": MarkID
     }
-    notifications.append({'data': result})
+    send_notification_for_one(session_id, {'data': result})
     return "操作成功"
 
 
 # TODO 地下洞群三位可视化表达
 @mcp.tool()
-async def StartFixedRoaming(position: str):
+async def StartFixedRoaming(position: str, session_id: str):
     """
     固定路径漫游开始漫游,从头开始漫游。
 
     参数:
     position: 漫游位置缩写:LD315(一号坝体廊道(上侧廊道)),LD290(二号坝体廊道(下侧廊道)),LD350.2(直坝电梯进入),FDCF(大坝发电厂房),DB(大坝),ZGD(张公岛)
+    session_id: 会话id，用于区分不同的用户  
 
     返回:
     漫游结果
@@ -103,16 +121,17 @@ async def StartFixedRoaming(position: str):
         "function": "StartFixedRoaming",
         "data": options[best_match[0]]
     }
-    notifications.append({'data': result})
+    send_notification_for_one(session_id, {'data': result})
     return "操作成功"
 
 @mcp.tool()
-async def SuspendFixedRoaming(position: str):
+async def SuspendFixedRoaming(position: str, session_id: str):
     """
     固定路径漫游，暂停漫游，暂停后鼠标左键可点击但不可位置移动。
 
     参数:
     position: 漫游位置缩写:LD315(一号坝体廊道(上侧廊道)),LD290(二号坝体廊道(下侧廊道)),LD350.2(直坝电梯进入),FDCF(大坝发电厂房),DB(大坝),ZGD(张公岛)
+    session_id: 会话id，用于区分不同的用户  
 
     返回:
     漫游结果
@@ -133,16 +152,17 @@ async def SuspendFixedRoaming(position: str):
         "function": "SuspendFixedRoaming",
         "data": options[best_match[0]]
     }
-    notifications.append({'data': result})
+    send_notification_for_one(session_id, {'data': result})
     return "操作成功"
 
 @mcp.tool()
-async def ContinueFixedRoaming(position: str):
+async def ContinueFixedRoaming(position: str, session_id: str):
     """
     固定路径漫游，从暂停处继续漫游。
 
     参数:
     position: 漫游位置缩写:LD315(一号坝体廊道(上侧廊道)),LD290(二号坝体廊道(下侧廊道)),LD350.2(直坝电梯进入),FDCF(大坝发电厂房),DB(大坝),ZGD(张公岛)
+    session_id: 会话id，用于区分不同的用户  
 
     返回:
     漫游结果
@@ -163,16 +183,17 @@ async def ContinueFixedRoaming(position: str):
         "function": "ContinueFixedRoaming",
         "data": options[best_match[0]]
     }
-    notifications.append({'data': result})
+    send_notification_for_one(session_id, {'data': result})
     return "操作成功"
 
 @mcp.tool()
-async def ExitFixedRoaming(position: str):
+async def ExitFixedRoaming(position: str, session_id: str):
     """
     固定路径漫游，漫游过程中强制退出漫游。
 
     参数:
     position: 漫游位置缩写:LD315(一号坝体廊道(上侧廊道)),LD290(二号坝体廊道(下侧廊道)),LD350.2(直坝电梯进入),FDCF(大坝发电厂房),DB(大坝),ZGD(张公岛)
+    session_id: 会话id，用于区分不同的用户  
 
     返回:
     漫游结果
@@ -193,13 +214,13 @@ async def ExitFixedRoaming(position: str):
         "function": "ExitFixedRoaming",
         "data": options[best_match[0]]
     }
-    notifications.append({'data': result})
+    send_notification_for_one(session_id, {'data': result})
     return "操作成功"
 
 
 # TODO 引泄水三维可视化表达 
 @mcp.tool()
-async def DiversionWaterOpenClose(homename: str, isOpen: bool, isClear: bool):
+async def DiversionWaterOpenClose(homename: str, isOpen: bool, isClear: bool, session_id: str):
     """
     引泄水系统各条孔洞是否泄水及各条泄流动画模拟。
 
@@ -207,6 +228,7 @@ async def DiversionWaterOpenClose(homename: str, isOpen: bool, isClear: bool):
     homename: 孔洞缩写:dkhao1(1号底孔), dkhao2(2号底孔), dkhao3(3号底孔), dkhao4(4号底孔), dkhao5(5号底孔), dkhao6(6号底孔), dkhao7(7号底孔), dkhao8(8号底孔), dkhao9(9号底孔), dkhao10(10号底孔), dkhao11(11号底孔), dkhao12(12号底孔), skhao1(1号深孔), skhao2(2号深孔), skhao3(3号深孔), skhao4(4号深孔), skhao5(5号深孔), skhao6(6号深孔), skhao7(7号深孔), skhao8(8号深孔), skhao9(9号深孔), skhao10(10号深孔), skhao11(11号深孔), skhao12(12号深孔), dld1(1号导流洞), dld2(2号导流洞)
     isOpen: 是否开启
     isClear: 是否清水
+    session_id: 会话id，用于区分不同的用户  
 
     返回:
     动画模拟结果
@@ -253,11 +275,11 @@ async def DiversionWaterOpenClose(homename: str, isOpen: bool, isClear: bool):
         "function": "DiversionWaterOpenClose",
         "data": data
     }
-    notifications.append({'data': result})
+    send_notification_for_one(session_id, {'data': result})
     return "操作成功"
 
 @mcp.tool()
-async def DiversionWaterPlaneUpDown(start: str, end: str, speed: int):
+async def DiversionWaterPlaneUpDown(start: str, end: str, speed: int, session_id: str):
     """
     控制水面升降。
 
@@ -265,6 +287,7 @@ async def DiversionWaterPlaneUpDown(start: str, end: str, speed: int):
     start: 开始位置水位,例如 343.418733
     end: 结束位置水位（370）
     speed: 速度（m/s）
+    session_id: 会话id，用于区分不同的用户  
 
     返回:
     控制水面升降结果
@@ -279,13 +302,16 @@ async def DiversionWaterPlaneUpDown(start: str, end: str, speed: int):
         "function": "DiversionWaterPlaneUpDown",
         "data": data
     }
-    notifications.append({'data': result})
+    send_notification_for_one(session_id, {'data': result})
     return "操作成功"
 
 @mcp.tool()
-async def DiversionWaterPlaneUpDownClose():
+async def diversion_water_plane_up_down_close(session_id: str):
     """
     退出水面升降。
+
+    参数:
+    session_id: 会话id，用于区分不同的用户  
 
     返回:
     退出水面升降结果
@@ -294,17 +320,18 @@ async def DiversionWaterPlaneUpDownClose():
         "type": "DiversionWaterManager",
         "function": "DiversionWaterPlaneUpDownClose",
     }
-    notifications.append({'data': result})
+    send_notification_for_one(session_id, {'data': result})
     return "操作成功"
 
 # TODO 大坝三维可视化
 @mcp.tool()
-async def DamTransparent(isShow: bool):
+async def DamTransparent(isShow: bool, session_id: str):
     """
     控制坝段透明/显示。
 
     参数:
     isShow: 是否透明，1 控制为透明状态，0表示为正常状态。
+    session_id: 会话id，用于区分不同的用户  
 
     返回:
     控制坝段透明结果
@@ -314,16 +341,17 @@ async def DamTransparent(isShow: bool):
         "function": "DamTransparent",
         "data": "0" if isShow else "1",
     }
-    notifications.append({'data': result})
+    send_notification_for_one(session_id, {'data': result})
     return "操作成功"
 
 @mcp.tool()
-async def CivilTransparent(isShow : bool):
+async def CivilTransparent(isShow : bool, session_id: str):
     """
     控制土建透明/显示。
 
     参数:
     isShow: 是否透明，1 控制为透明状态，0表示为正常状态。
+    session_id: 会话id，用于区分不同的用户  
 
     返回:
     控制土建透明结果
@@ -333,16 +361,17 @@ async def CivilTransparent(isShow : bool):
         "function": "CivilTransparent",
         "data": "0" if isShow else "1",
     }
-    notifications.append({'data': result})
+    send_notification_for_one(session_id, {'data': result})
     return "操作成功"
 
 @mcp.tool()
-async def EquipmentShowHide(isShow: bool):
+async def EquipmentShowHide(isShow: bool, session_id: str):
     """
     控制机电设备显示/隐藏。
 
     参数:
     isShow: 是否透明，1 控制为透明状态，0表示为正常状态。
+    session_id: 会话id，用于区分不同的用户  
 
     返回:
     控制土建透明结果
@@ -352,17 +381,18 @@ async def EquipmentShowHide(isShow: bool):
         "function": "EquipmentShowHide",
         "data": "0" if isShow else "1",
     }
-    notifications.append({'data': result})
+    send_notification_for_one(session_id, {'data': result})
     return "操作成功"
 
 @mcp.tool()
-async def BIMHighlight(BIMID: str, isHighlight: bool):
+async def BIMHighlight(BIMID: str, isHighlight: bool, session_id: str):
     """
     控制设备（建筑物）高亮和正常显示。
 
     参数:
     BIMID: 设备的ID
     isHighlight: 是否高亮,取消高亮时候BIMID传什么都行，只要高亮值为0.
+    session_id: 会话id，用于区分不同的用户  
 
     返回:
     高亮显示结果
@@ -376,17 +406,18 @@ async def BIMHighlight(BIMID: str, isHighlight: bool):
         "function": "BIMHighlight",
         "data": data,
     }
-    notifications.append({'data': result})
+    send_notification_for_one(session_id, {'data': result})
     return "操作成功"
 
 @mcp.tool()
-async def SettleWarnCloud(date: str, isShow: bool):
+async def SettleWarnCloud(date: str, isShow: bool, session_id: str):
     """
     按日期显示坝顶沉降云图。
 
     参数:
     date: 日期，例如 2025-02-14
     isShow: 是否显示
+    session_id: 会话id，用于区分不同的用户  
 
     返回:
     高亮显示结果
@@ -400,19 +431,20 @@ async def SettleWarnCloud(date: str, isShow: bool):
         "function": "SettleWarnCloud",
         "data": data,
     }
-    notifications.append({'data': result})
+    send_notification_for_one(session_id, {'data': result})
     return "操作成功"
 
 
 #TODO 工况模拟三维场景可视化表达
 @mcp.tool()
-async def GateState(gateName: str, isOn: bool):
+async def GateState(gateName: str, isOn: bool, session_id: str):
     """
     设置闸门启闭状态。
 
     参数:
     gateName: 闸门名字或者泄洪孔洞名字;可以单个控制 ；例如: dkhao、skhao控制泄流孔洞；闸门名字单个控制，例如DKGZZM_11、DKSGJXZM_09
     isOn: 是否开启
+    session_id: 会话id，用于区分不同的用户  
 
     返回:
     闸门启闭状态结果
@@ -500,16 +532,17 @@ async def GateState(gateName: str, isOn: bool):
         "function": "GateState",
         "data": data,
     }
-    notifications.append({'data': result})
+    send_notification_for_one(session_id, {'data': result})
     return "操作成功"
 
 @mcp.tool()
-async def OnlyGateEnable(isOnlyGateEnable: bool):
+async def OnlyGateEnable(isOnlyGateEnable: bool, session_id: str):
     """
     设置闸门不透明,除闸门以外其他全透明。
 
     参数:
     isOnlyGateEnable: 是否只看闸门，其他半透。
+    session_id: 会话id，用于区分不同的用户  
 
     返回:
     闸门显示结果
@@ -519,16 +552,17 @@ async def OnlyGateEnable(isOnlyGateEnable: bool):
         "function": "GateEnable",
         "data": isOnlyGateEnable,
     }
-    notifications.append({'data': result})
+    send_notification_for_one(session_id, {'data': result})
     return "操作成功"
 
 @mcp.tool()
-async def FocusingGatePoint(gateId: str):
+async def FocusingGatePoint(gateId: str, session_id: str):
     """
     聚焦显示对应ID号闸门，并且高亮提示。
 
     参数:
     gateId: 闸门id
+    session_id: 会话id，用于区分不同的用户  
 
     返回:
     闸门显示结果
@@ -538,19 +572,20 @@ async def FocusingGatePoint(gateId: str):
         "function": "FocusingGatePoint",
         "data": gateId,
     }
-    notifications.append({'data': result})
+    send_notification_for_one(session_id, {'data': result})
     return "操作成功"
 
 
 # TODO 图层控制功能管理
 @mcp.tool()
-async def ManagementScopeLine(lineName: str, isShow: bool):
+async def ManagementScopeLine(lineName: str, isShow: bool, session_id: str):
     """
     控制单个范围线、水工标签、水面。
 
     参数:
     lineName: 范围线名字，例如：管理范围线，保护范围线，确权土地范围线，未确权土地范围线，水工标签，水面
     isShow: 是否显示
+    session_id: 会话id，用于区分不同的用户  
 
     返回:
     单个范围线、水工标签的结果
@@ -569,16 +604,17 @@ async def ManagementScopeLine(lineName: str, isShow: bool):
         "function": "ManagementScopeLine",
         "data": data,
     }
-    notifications.append({'data': result})
+    send_notification_for_one(session_id, {'data': result})
     return "操作成功"
 
 @mcp.tool()
-async def ManagementScopeLineAllShow(isAllShow: bool):
+async def ManagementScopeLineAllShow(isAllShow: bool, session_id: str):
     """
     所有范围线管理功能，控制全部范围线。
 
     参数:
     isAllShow: 是否显示，true即所有范围线显示，false即所有范围线隐藏
+    session_id: 会话id，用于区分不同的用户  
 
     返回:
     单个范围线、水工标签的结果
@@ -588,16 +624,17 @@ async def ManagementScopeLineAllShow(isAllShow: bool):
         "function": "ManagementScopeLineAllShow",
         "data": isAllShow,
     }
-    notifications.append({'data': result})
+    send_notification_for_one(session_id, {'data': result})
     return "操作成功"
 
 @mcp.tool()
-async def DamMarkControll(isShowDamMark: bool):
+async def DamMarkControll(isShowDamMark: bool, session_id: str):
     """
     控制三门峡大坝，发电信息，孔洞信息的标签。
 
     参数:
     isShowDamMark: 是否显示，true标签显示，false标签隐藏
+    session_id: 会话id，用于区分不同的用户  
 
     返回:
     标签显示的结果
@@ -607,16 +644,17 @@ async def DamMarkControll(isShowDamMark: bool):
         "function": "DamMarkControll",
         "data": isShowDamMark,
     }
-    notifications.append({'data': result})
+    send_notification_for_one(session_id, {'data': result})
     return "操作成功"
 
 @mcp.tool()
-async def FDCFMarkShowControll(isShowFDCFMark: bool):
+async def FDCFMarkShowControll(isShowFDCFMark: bool, session_id: str):
     """
     控制发电厂房内发电设施的标签。
 
     参数:
     isShowFDCFMark: 是否显示，true标签显示，false标签隐藏
+    session_id: 会话id，用于区分不同的用户  
 
     返回:
     标签显示的结果
@@ -626,16 +664,17 @@ async def FDCFMarkShowControll(isShowFDCFMark: bool):
         "function": "FDCFMarkShowControll",
         "data": isShowFDCFMark,
     }
-    notifications.append({'data': result})
+    send_notification_for_one(session_id, {'data': result})
     return "操作成功"
 
 @mcp.tool()
-async def XJDShowControll(XJDShowControll: bool):
+async def XJDShowControll(XJDShowControll: bool, session_id: str):
     """
     控制巡检点显隐。
 
     参数:
     XJDShowControll: 是否显示，true标签显示，false标签隐藏
+    session_id: 会话id，用于区分不同的用户  
 
     返回:
     巡检点显隐的结果
@@ -645,17 +684,18 @@ async def XJDShowControll(XJDShowControll: bool):
         "function": "XJDShowControll",
         "data": XJDShowControll,
     }
-    notifications.append({'data': result})
+    send_notification_for_one(session_id, {'data': result})
     return "操作成功"
 
 @mcp.tool()
-async def OverlyShow(isOverlyShow: bool, overlytag: str):# DK底孔,SK深孔,DLD导流洞
+async def OverlyShow(isOverlyShow: bool, overlytag: str, session_id: str):# DK底孔,SK深孔,DLD导流洞
     """
     场景中中控，底孔，导流洞闪烁。
 
     参数:
     isOverlyShow: 是否显示，true闪烁，false不闪烁
     overlytag: 巡检点类型，例如：底孔,深孔,导流洞
+    session_id: 会话id，用于区分不同的用户  
 
     返回:
     设置闪烁的结果
@@ -674,14 +714,17 @@ async def OverlyShow(isOverlyShow: bool, overlytag: str):# DK底孔,SK深孔,DLD
         "function": "OverlyShow",
         "data": [data],
     }
-    notifications.append({'data': result})
+    send_notification_for_one(session_id, {'data': result})
     return "操作成功"
 
 # TODO 通用方法
 @mcp.tool()
-async def ResetScene():
+async def ResetScene(session_id: str):
     """
     重置场景当前摄像机观察位置和朝向。
+
+    参数:
+    session_id: 会话id，用于区分不同的用户  
 
     返回:
     场景重置的结果
@@ -691,16 +734,17 @@ async def ResetScene():
         "function": "ResetScene",
         "data": "",
     }
-    notifications.append({'data': result})
+    send_notification_for_one(session_id, {'data': result})
     return "操作成功"
 
 @mcp.tool()
-async def SetCursorState(cursorState: bool):
+async def SetCursorState(cursorState: bool, session_id: str):
     """
     重置场景当前摄像机观察位置和朝向。
 
     参数：
     cursorState: 鼠标状态，true显示，false隐藏
+    session_id: 会话id，用于区分不同的用户  
 
     返回:
     场景重置的结果
@@ -710,18 +754,19 @@ async def SetCursorState(cursorState: bool):
         "function": "SetCursorState",
         "data": cursorState,
     }
-    notifications.append({'data': result})
+    send_notification_for_one(session_id, {'data': result})
     return "操作成功"
 
 
 # TODO 天气系统
 @mcp.tool()
-async def SetWeather(weather: str):
+async def SetWeather(weather: str, session_id: str):
     """
     设置不同类型天气。
 
     参数：
     weather: 天气类型，例如：晴天,少云,多云,阴天,多雾,小雨,中雨,大雨,雷雨,小雪,中雪,暴雪
+    session_id: 会话id，用于区分不同的用户  
 
     返回:
     设置不同类型天气的结果
@@ -729,23 +774,24 @@ async def SetWeather(weather: str):
     options = {'晴天': 'fine', '少云': 'partcloudy', '多云': 'cloudy', '阴天': 'overcast', '多雾': 'thickness', '小雨': 'lightrain', '中雨': 'moderaterain', '大雨': 'heavyrain', '雷雨': 'thunderstorm', '小雪': 'lightsnow', '中雪': 'moderatesnow', '暴雪': 'blizzard'}
     best_match = process.extractOne(weather, list(options.keys()))
     print(f"最匹配的选项是: {best_match[0]}，相似度得分: {best_match[1]}")
-    
+    print("session_id: ", session_id)
     result = {
         "type": "WeatherManager",
         "function": "SetWeather",
         "data": options[best_match[0]],
         # "data": weather
     }
-    notifications.append({'data': result})
+    send_notification_for_one(session_id, {'data': result})
     return "操作成功"
 
 @mcp.tool()
-async def SetTime(time: str): # 18:30
+async def SetTime(time: str, session_id: str): # 18:30
     """
     设置不同的时间。
 
     参数：
     time: 时间，例如：18:30
+    session_id: 会话id，用于区分不同的用户  
 
     返回:
     设置不同的时间的结果
@@ -755,13 +801,13 @@ async def SetTime(time: str): # 18:30
         "function": "SetTime",
         "data": time,
     }
-    notifications.append({'data': result})
+    send_notification_for_one(session_id, {'data': result})
     return "操作成功"
 
 
 # TODO 有限元预测
 @mcp.tool()
-async def CreateMesh(type: str, meshIndexPath: str, resultPath: str): 
+async def CreateMesh(type: str, meshIndexPath: str, resultPath: str, session_id: str): 
     """
     有限元云图生成。
 
@@ -769,6 +815,7 @@ async def CreateMesh(type: str, meshIndexPath: str, resultPath: str):
     type: 类型，例如：合位移,水平向位移,竖直位移,最大主应力,最小主应力,水平应力,垂直应力
     meshIndexPath: 网格索引路径，例如：整体,电站坝段,右岸非溢流坝段,溢流坝段2,溢流坝段3
     resultPath: 结果路径，例如：318
+    session_id: 会话id，用于区分不同的用户  
 
     返回:
     有限元云图生成的结果
@@ -791,17 +838,18 @@ async def CreateMesh(type: str, meshIndexPath: str, resultPath: str):
         "function": "CreateMesh",
         "data": data,
     }
-    notifications.append({'data': result})
+    send_notification_for_one(session_id, {'data': result})
     return "操作成功"
 
 @mcp.tool()
-async def DestoryMesh(isClear: bool, isHide: bool):
+async def DestoryMesh(isClear: bool, isHide: bool, session_id: str):
     """
     销毁，隐藏有限元云图。
 
     参数：
     isClear: 是否清除，true清除，false不清除
     isHide: 是否隐藏，true隐藏，false不隐藏
+    session_id: 会话id，用于区分不同的用户  
 
     返回:
     销毁，隐藏有限元云图的结果
@@ -815,64 +863,9 @@ async def DestoryMesh(isClear: bool, isHide: bool):
         "function": "DestoryMesh",
         "data": data,
     }
-    notifications.append({'data': result})
+    send_notification_for_one(session_id, {'data': result})
     return "操作成功"
 
-
-## sse传输
-def create_starlette_app(mcp_server: Server, *, debug: bool = False) -> Starlette:
-    """Create a Starlette application that can serve the provided mcp server with SSE."""
-    sse = SseServerTransport("/messages/")
-    async def handle_Tool_sse(request: Request) -> None:
-        async with sse.connect_sse(
-                request.scope,
-                request.receive,
-                request._send,  # noqa: SLF001
-        ) as (read_stream, write_stream):
-            await mcp_server.run(
-                read_stream,
-                write_stream,
-                mcp_server.create_initialization_options(),
-            )
-
-    async def notification_generator():
-        # 这里可以使用队列或者其他机制来存储通知
-        while True:
-            if notifications:
-                yield {
-                    "event": "notification",
-                    "data": notifications.pop(0)
-                }
-            await asyncio.sleep(1)
-
-    app = Starlette(
-        debug=debug,
-        routes=[
-            Route("/sse", endpoint=handle_Tool_sse),
-            Route("/ue_sse", lambda request: EventSourceResponse(notification_generator())),
-            Mount("/messages/", app=sse.handle_post_message)
-        ],
-    )
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],  # 允许所有源访问，生产环境中应替换为实际允许的源
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"]
-    )
-    return app
-
 if __name__ == "__main__":
-    mcp_server = mcp._mcp_server
-
-    import argparse
-
-    parser = argparse.ArgumentParser(description='Run MCP SSE-based server')
-    parser.add_argument('--host', default='0.0.0.0', help='Host to bind to')
-    parser.add_argument('--port', type=int, default=8020, help='Port to listen on')
-    args = parser.parse_args()
-
-    # Bind SSE request handling to MCP server
-    starlette_app = create_starlette_app(mcp_server, debug=True)
-
-    uvicorn.run(starlette_app, host=args.host, port=args.port)
+    # Initialize and run the server
+    mcp.run(transport="sse")
