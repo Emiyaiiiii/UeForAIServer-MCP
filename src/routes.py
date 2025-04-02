@@ -29,11 +29,11 @@ async def handle_sse(request):
 
 async def notification_generator(request: Request):
     """生成通知事件的SSE流"""
-    # 获取或创建会话ID
+    # 获取会话ID
     session_id = request.query_params.get('session_id')
     # session_id = str(uuid.uuid4())
     # session_id = request.session.get('session_id')
-    print("session_id: ", session_id)
+
     request.session['session_id'] = session_id
     ue_sessions[session_id] = {
         'created_at': datetime.now(),

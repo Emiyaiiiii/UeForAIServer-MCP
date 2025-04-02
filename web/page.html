@@ -15,6 +15,8 @@
     }
 
     session_id = guid()
+    console.log(session_id)
+
     eventUrl = 'http://localhost:8020/ue_sse?session_id=' + session_id;
     const eventSource = new EventSource(eventUrl);
     eventSource.addEventListener('notification', function (event) {
