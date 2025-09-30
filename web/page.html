@@ -6,7 +6,7 @@
 </head>
 
 <body>
-  <script src="http://10.104.209.112:9000/embed.min.js" id="EBOfAew81EhXr9Ru" defer>
+  <script src="http://123.53.55.82:8000/embed.min.js" id="3X8Fe17ZRofqTh6o" defer>
   </script>
   
   <script>
@@ -20,7 +20,7 @@
     session_id = guid()
     console.log(session_id)
 
-    eventUrl = 'http://localhost:8020/ue_sse?session_id=' + session_id;
+    eventUrl = 'http://123.53.55.82:8001/ue_sse?session_id=' + session_id;
     const eventSource = new EventSource(eventUrl);
     eventSource.addEventListener('notification', function (event) {
       console.log('Received notification:', event.data);
@@ -28,8 +28,8 @@
     });
 
     window.difyChatbotConfig = {
-      token: 'EBOfAew81EhXr9Ru',
-      baseUrl: 'http://10.104.209.112:9000',
+      token: '3X8Fe17ZRofqTh6o',
+      baseUrl: 'http://123.53.55.82:8000',
       inputs: {
         session_id: session_id,
       },

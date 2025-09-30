@@ -1,0 +1,17 @@
+# 服务器配置
+HOST=0.0.0.0
+PORT=9002
+DEBUG=True
+
+# 安全配置
+# SECRET_KEY=your-secret-key-here
+
+# MCP配置
+MCP_LOG_LEVEL=INFO
+MCP_APP_NAME=UeForAI
+
+# 会话配置
+SESSION_EXPIRE_TIME=3600
+
+# 通知队列大小
+NOTIFICATION_QUEUE_SIZE=100
