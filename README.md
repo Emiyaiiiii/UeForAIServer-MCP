@@ -58,13 +58,13 @@ UeForAIServer-MCP是一个用于控制虚幻引擎(UE)场景中视角和漫游�
 ### 运行服务器
 ```bash
 # 使用uvicorn直接运行
-uvicorn server:app --host 0.0.0.0 --port 9002
+uvicorn main:app --host 0.0.0.0 --port 9002
 
 # 或者使用项目入口文件
-python server.py --host 0.0.0.0 --port 9002
+python main.py --host 0.0.0.0 --port 9002
 
 # 使用uv运行(如果已安装)
-uv run server.py --host 0.0.0.0 --port 9002
+uv run main.py --host 0.0.0.0 --port 9002
 ```
 
 ## API接口

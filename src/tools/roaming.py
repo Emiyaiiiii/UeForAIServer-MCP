@@ -1,5 +1,5 @@
 import logging
-from src.ue_mcp.client import mcp
+from src.core.mcp_client import mcp
 from src.utils.notification import send_notification_for_one, create_notification, NotificationTypes
 from src.utils.session import session_manager
 from fuzzywuzzy import process

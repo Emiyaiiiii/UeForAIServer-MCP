@@ -1,5 +1,5 @@
 import logging
-from src.ue_mcp.client import mcp
+from src.core.mcp_client import mcp
 from src.utils.notification import send_notification_for_one, create_notification, NotificationTypes
 from src.utils.session import session_manager
 from typing import Optional
@@ -38,7 +38,7 @@ async def FirstPerson(isFirstPerson: bool, session_id: Optional[str] = None):
                 return f"操作失败：无法发送通知到会话 {session_id}"
         else:
             # 如果没有会话ID，使用兼容模式
-            from src.utils.notification import notifications
+            from ue_for_ai_server.utils.notification import notifications
             notifications.append({'data': result})
             return "操作成功"
     except Exception as e:
@@ -77,7 +77,7 @@ async def ThirdPerson(isThirdPerson: bool, session_id: Optional[str] = None):
                 return f"操作失败：无法发送通知到会话 {session_id}"
         else:
             # 如果没有会话ID，使用兼容模式
-            from src.utils.notification import notifications
+            from ue_for_ai_server.utils.notification import notifications
             notifications.append({'data': result})
             return "操作成功"
     except Exception as e:
@@ -116,7 +116,7 @@ async def MarkLocation(MarkID: str, session_id: Optional[str] = None):
                 return f"操作失败：无法发送通知到会话 {session_id}"
         else:
             # 如果没有会话ID，使用兼容模式
-            from src.utils.notification import notifications
+            from ue_for_ai_server.utils.notification import notifications
             notifications.append({'data': result})
             return "操作成功"
     except Exception as e:

@@ -1,16 +1,13 @@
 from starlette.routing import Route, Mount
 from starlette.responses import JSONResponse, HTMLResponse, PlainTextResponse
 from datetime import datetime
-import uuid
-import asyncio
-import logging
-# 导入安装的mcp包中的SseServerTransport
 from mcp.server.sse import SseServerTransport
 from sse_starlette.sse import EventSourceResponse
-from starlette.requests import Request
-# 使用本地的MCP客户端
-from src.ue_mcp.client import mcp
-from src.utils.session import session_manager, get_ue_sessions
+import uuid
+import asyncio
+from src.core.mcp_client import mcp
+from src.utils.session import session_manager
+import logging
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +15,7 @@ logger = logging.getLogger(__name__)
 sse = SseServerTransport("/messages/")
 
 # MCP SSE handler function
-async def handle_sse(request: Request):
+async def handle_sse(request):
     """处理MCP SSE连接"""
     async with sse.connect_sse(request.scope, request.receive, request._send) as (
         read_stream,
@@ -28,7 +25,7 @@ async def handle_sse(request: Request):
             read_stream, write_stream, mcp._mcp_server.create_initialization_options()
         )
 
-async def notification_generator(request: Request):
+async def notification_generator(request):
     """生成通知事件的SSE流"""
     # 获取会话ID
     session_id = request.query_params.get('session_id')
@@ -69,7 +66,7 @@ async def notification_generator(request: Request):
         # 注意：我们不移除会话，让会话管理器的定期清理任务来处理
         logger.info(f"SSE生成器已退出，会话: {session_id}")
 
-async def health_check(request: Request):
+async def health_check(request):
     """健康检查端点"""
     return JSONResponse({
         "status": "ok",
@@ -77,7 +74,7 @@ async def health_check(request: Request):
         "active_sessions": len(session_manager.get_sessions())
     })
 
-async def get_sessions_info(request: Request):
+async def get_sessions_info(request):
     """获取所有会话信息"""
     sessions = session_manager.get_sessions()
     result = {
@@ -106,5 +103,3 @@ routes = [
     Route("/ue_sse", lambda request: EventSourceResponse(notification_generator(request))),
     Mount("/messages/", app=sse.handle_post_message),
 ]
-
-__all__ = ['routes']

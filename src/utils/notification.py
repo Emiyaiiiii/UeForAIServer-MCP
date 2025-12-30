@@ -95,3 +95,6 @@ def create_notification(notification_type: str, function_name: str, data: Any) -
             'data': data
         }
     }
+
+# 兼容旧接口的通知列表
+notifications = []

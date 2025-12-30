@@ -13,7 +13,9 @@ class SessionManager:
         self.is_running = False
     
     def get_sessions(self) -> Dict[str, dict]:
-        """获取所有会话"""
+        """
+        获取所有会话
+        """
         return self.sessions
     
     def create_session(self, session_id: str) -> dict:
@@ -99,7 +101,9 @@ class SessionManager:
             return False
     
     async def cleanup_expired_sessions(self):
-        """定期清理过期会话"""
+        """
+        定期清理过期会话
+        """
         while self.is_running:
             current_time = datetime.now()
             expired_sessions = []
@@ -118,14 +122,18 @@ class SessionManager:
             await asyncio.sleep(300)
     
     def start_cleanup_task(self):
-        """启动会话清理任务"""
+        """
+        启动会话清理任务
+        """
         if not self.is_running:
             self.is_running = True
             self.cleanup_task = asyncio.create_task(self.cleanup_expired_sessions())
             logger.info("会话清理任务已启动")
     
     async def stop_cleanup_task(self):
-        """停止会话清理任务"""
+        """
+        停止会话清理任务
+        """
         if self.cleanup_task and not self.cleanup_task.done():
             self.is_running = False
             self.cleanup_task.cancel()
@@ -141,5 +149,7 @@ session_manager = SessionManager()
 
 # 兼容旧接口
 def get_ue_sessions() -> Dict[str, dict]:
-    """获取UE会话字典（兼容旧接口）"""
+    """
+    获取UE会话字典（兼容旧接口）
+    """
     return session_manager.get_sessions()
